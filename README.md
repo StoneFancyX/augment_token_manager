@@ -101,12 +101,13 @@ CREATE TABLE tokens (
 - [x] 响应式设计
 - [x] portal_info JSON 解析（过期时间、剩余次数）
 - [x] 单个 Token 详情 API
+- [x] 添加新 Token 后端功能
+- [x] 删除 Token 后端功能
+- [x] 编辑 Token 后端功能
+- [x] 一键使用 Token 功能
+- [x] 批量导入功能
 
 ### 🔄 待实现
-- [ ] 添加新 Token 后端功能
-- [ ] 删除 Token 后端功能
-- [ ] 编辑 Token 后端功能
-- [ ] 一键使用 Token 功能
 - [ ] 搜索和过滤功能
 - [ ] 批量操作功能
 

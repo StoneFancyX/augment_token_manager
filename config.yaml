@@ -1,0 +1,44 @@
+# Augment Token Manager 配置文件
+
+# 数据库配置
+database:
+  host: "localhost"
+  port: 5432
+  name: "postgres"
+  username: "postgres"
+  password: "postgres"
+  sslmode: "disable"
+  pool:
+    max_idle_conns: 10
+    max_open_conns: 100
+    conn_max_lifetime: 60
+
+# 服务器配置
+server:
+  port: 8080
+  host: "0.0.0.0"
+  mode: "release" # debug or release
+
+# 日志配置
+logging:
+  level: "info"
+  format: "text"
+
+# 身份验证配置
+auth:
+  # 默认管理员账号
+  admin:
+    username: "admin"
+    password: "admin"  # 实际部署时请修改为强密码
+
+  # 会话配置
+  session:
+    secret_key: "augment-token-manager-secret-key-2025"  # 实际部署时请修改
+    timeout: "72h"  # 会话超时时间
+    cookie_name: "atm_session"
+
+  # 安全配置
+  security:
+    max_login_attempts: 5  # 最大登录尝试次数
+    lockout_duration: "15m"  # 账号锁定时间
+    bcrypt_cost: 12  # bcrypt加密强度

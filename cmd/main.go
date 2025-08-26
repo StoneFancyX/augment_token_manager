@@ -67,7 +67,7 @@ func main() {
 
 	// 创建处理器
 	tokenHandler := handlers.NewTokenHandler()
-	authHandler := handlers.NewAuthHandler()
+	authHandler := handlers.NewAuthHandler(cfg)
 
 	// 公开路由（不需要认证）
 	router.GET("/login", authHandler.GetLoginPage)

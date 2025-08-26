@@ -13,6 +13,7 @@ type Config struct {
 	Database DatabaseConfig `yaml:"database"`
 	Server   ServerConfig   `yaml:"server"`
 	Logging  LoggingConfig  `yaml:"logging"`
+	Auth     AuthConfig     `yaml:"auth"`
 }
 
 // DatabaseConfig 数据库配置
@@ -46,6 +47,17 @@ type LoggingConfig struct {
 	Format string `yaml:"format"`
 }
 
+// AuthConfig 身份验证配置
+type AuthConfig struct {
+	Admin AdminConfig `yaml:"admin"`
+}
+
+// AdminConfig 管理员账号配置
+type AdminConfig struct {
+	Username string `yaml:"username"`
+	Password string `yaml:"password"`
+}
+
 // LoadConfig 从配置文件加载配置
 func LoadConfig(configPath string) (*Config, error) {
 	// 读取配置文件
@@ -62,6 +74,11 @@ func LoadConfig(configPath string) (*Config, error) {
 
 	// 设置默认值
 	setDefaults(&config)
+
+	// 验证必要的配置
+	if err := validateConfig(&config); err != nil {
+		return nil, fmt.Errorf("配置验证失败: %v", err)
+	}
 
 	return &config, nil
 }
@@ -117,4 +134,30 @@ func (c *DatabaseConfig) GetDSN() string {
 // GetConnMaxLifetime 获取连接最大生存时间
 func (c *PoolConfig) GetConnMaxLifetime() time.Duration {
 	return time.Duration(c.ConnMaxLifetime) * time.Minute
+}
+
+// validateConfig 验证配置的完整性和有效性
+func validateConfig(config *Config) error {
+	// 验证身份验证配置
+	if config.Auth.Admin.Username == "" {
+		return fmt.Errorf("身份验证配置错误: 管理员用户名不能为空 (auth.admin.username)")
+	}
+	if config.Auth.Admin.Password == "" {
+		return fmt.Errorf("身份验证配置错误: 管理员密码不能为空 (auth.admin.password)")
+	}
+
+	// 验证密码强度（可选，但建议）
+	if len(config.Auth.Admin.Password) < 3 {
+		return fmt.Errorf("身份验证配置错误: 管理员密码长度至少为3个字符")
+	}
+
+	// 验证数据库配置
+	if config.Database.Name == "" {
+		return fmt.Errorf("数据库配置错误: 数据库名称不能为空 (database.name)")
+	}
+	if config.Database.Username == "" {
+		return fmt.Errorf("数据库配置错误: 数据库用户名不能为空 (database.username)")
+	}
+
+	return nil
 }

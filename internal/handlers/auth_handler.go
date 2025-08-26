@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"augment_token_manager/internal/config"
 	"augment_token_manager/internal/middleware"
 	"augment_token_manager/internal/repository"
 	"bytes"
@@ -25,13 +26,15 @@ const (
 type AuthHandler struct {
 	tokenRepo     *repository.TokenRepository
 	loginAttempts map[string]*LoginAttempt // 简单的内存存储，生产环境建议使用Redis
+	config        *config.Config           // 配置对象
 }
 
 // NewAuthHandler 创建新的 AuthHandler 实例
-func NewAuthHandler() *AuthHandler {
+func NewAuthHandler(cfg *config.Config) *AuthHandler {
 	return &AuthHandler{
 		tokenRepo:     repository.NewTokenRepository(),
 		loginAttempts: make(map[string]*LoginAttempt),
+		config:        cfg,
 	}
 }
 
@@ -363,9 +366,12 @@ func (h *AuthHandler) LogoutAPI(c *gin.Context) {
 
 // validateCredentials 验证用户凭据
 func (h *AuthHandler) validateCredentials(username, password string) bool {
-	// 简化处理：硬编码管理员账号
-	// 实际部署时应该从配置文件读取或使用数据库
-	if username == "admin" && password == "admin123" {
+	// 从配置文件读取管理员账号信息
+	adminUsername := h.config.Auth.Admin.Username
+	adminPassword := h.config.Auth.Admin.Password
+
+	// 验证管理员账号
+	if username == adminUsername && password == adminPassword {
 		return true
 	}
 

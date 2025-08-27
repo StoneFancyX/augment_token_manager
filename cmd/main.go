@@ -92,7 +92,8 @@ func main() {
 
 		// OAuth相关API
 		protected.GET("/api/auth/generate-url", authHandler.GenerateAuthURLAPI)
-		protected.POST("/api/auth/exchange-token", authHandler.ExchangeTokenAPI)
+		protected.POST("/api/auth/validate-response", authHandler.ValidateAuthResponseAPI)
+		protected.POST("/api/auth/save-token", authHandler.SaveTokenAPI)
 		protected.POST("/api/auth/logout", authHandler.LogoutAPI)
 	}
 

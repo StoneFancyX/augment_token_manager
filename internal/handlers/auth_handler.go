@@ -53,12 +53,6 @@ type AuthResponse struct {
 	TenantURL string `json:"tenant_url" binding:"required"`
 }
 
-// ExchangeTokenRequest token交换请求结构
-type ExchangeTokenRequest struct {
-	AuthResponse AuthResponse      `json:"auth_response" binding:"required"`
-	OAuthState   AugmentOAuthState `json:"oauth_state" binding:"required"`
-}
-
 // TokenApiResponse 对应服务端返回的 access_token
 type TokenApiResponse struct {
 	AccessToken string `json:"access_token"`
@@ -211,9 +205,16 @@ func (h *AuthHandler) getAugmentAccessToken(tenantURL, codeVerifier, code string
 	return &tokenResp, nil
 }
 
-// ExchangeTokenAPI token交换API
-func (h *AuthHandler) ExchangeTokenAPI(c *gin.Context) {
-	var req ExchangeTokenRequest
+
+// ValidateAuthResponseRequest 验证授权响应请求结构
+type ValidateAuthResponseRequest struct {
+	AuthResponse AuthResponse      `json:"auth_response" binding:"required"`
+	OAuthState   AugmentOAuthState `json:"oauth_state" binding:"required"`
+}
+
+// ValidateAuthResponseAPI 验证授权响应API（第2步）
+func (h *AuthHandler) ValidateAuthResponseAPI(c *gin.Context) {
+	var req ValidateAuthResponseRequest
 
 	// 绑定JSON数据
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -243,7 +244,7 @@ func (h *AuthHandler) ExchangeTokenAPI(c *gin.Context) {
 		return
 	}
 
-	// 使用授权码换取access token
+	// 使用授权码换取access token（但不保存）
 	tokenResp, err := h.getAugmentAccessToken(req.AuthResponse.TenantURL, req.OAuthState.CodeVerifier, req.AuthResponse.Code)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -253,17 +254,69 @@ func (h *AuthHandler) ExchangeTokenAPI(c *gin.Context) {
 		return
 	}
 
-	// 准备保存到数据库的数据
-	createReq := repository.CreateTokenRequest{
-		TenantURL:   req.AuthResponse.TenantURL,
-		AccessToken: tokenResp.AccessToken,
-		PortalURL:   tokenResp.PortalURL,
-		EmailNote:   tokenResp.Email,
+	// 返回验证成功的响应，包含解析后的token信息（但不保存到数据库）
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"tenant_url":   req.AuthResponse.TenantURL,
+			"access_token": tokenResp.AccessToken,
+			"email":        tokenResp.Email,
+			"portal_url":   tokenResp.PortalURL,
+		},
+		"message": "授权响应验证成功",
+	})
+}
+
+// SaveTokenRequest 保存token请求结构（第3步）
+type SaveTokenRequest struct {
+	TenantURL   string `json:"tenant_url" binding:"required"`
+	AccessToken string `json:"access_token" binding:"required"`
+	Email       string `json:"email"`
+	PortalURL   string `json:"portal_url"`
+	EmailNote   string `json:"email_note"`
+}
+
+// SaveTokenAPI 保存token API（第3步）
+func (h *AuthHandler) SaveTokenAPI(c *gin.Context) {
+	var req SaveTokenRequest
+
+	// 绑定JSON数据
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "请求数据格式错误: " + err.Error(),
+		})
+		return
 	}
 
-	// 如果token响应中包含tenant_url，优先使用它
-	if tokenResp.TenantURL != "" {
-		createReq.TenantURL = tokenResp.TenantURL
+	// 验证必填字段
+	if req.TenantURL == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Tenant URL 不能为空",
+		})
+		return
+	}
+
+	if req.AccessToken == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Access Token 不能为空",
+		})
+		return
+	}
+
+	// 准备保存到数据库的数据
+	createReq := repository.CreateTokenRequest{
+		TenantURL:   req.TenantURL,
+		AccessToken: req.AccessToken,
+		PortalURL:   req.PortalURL,
+		EmailNote:   req.EmailNote,
+	}
+
+	// 如果用户没有输入邮箱备注，使用从token响应中获取的email
+	if createReq.EmailNote == "" && req.Email != "" {
+		createReq.EmailNote = req.Email
 	}
 
 	// 保存token到数据库
@@ -280,7 +333,7 @@ func (h *AuthHandler) ExchangeTokenAPI(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{
 		"success": true,
 		"data":    token.ToResponse(),
-		"message": "Token获取并保存成功",
+		"message": "Token保存成功",
 	})
 }
 

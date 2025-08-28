@@ -36,6 +36,10 @@
                             <span class="btn-icon bi bi-arrow-clockwise"></span>
                             <span>全部刷新</span>
                         </button>
+                        <button class="btn btn-warning" onclick="batchValidateTokens()" id="batchValidateBtn" title="批量验证所有Token状态">
+                            <span class="btn-icon bi bi-shield-check"></span>
+                            <span>验证 Token</span>
+                        </button>
                         <button class="btn btn-primary" onclick="openGetTokenModal()" title="获取新的Token">
                             <span class="btn-icon bi bi-download"></span>
                             <span>获取 Token</span>
@@ -166,28 +170,84 @@
                 <!-- 批量导入标签页 -->
                 <div id="batchAddContent" class="tab-content">
                     <div class="modal-form">
-                        <!-- 文件上传区域 -->
-                        <div class="form-group">
-                            <label>CSV 文件上传:</label>
-                            <div class="file-upload-area" id="fileUploadArea">
-                                <div class="upload-placeholder">
-                                    <i class="bi bi-cloud-upload" style="font-size: 48px; color: #007bff;"></i>
-                                    <p>拖拽 CSV 文件到此处，或 <a href="#" onclick="triggerFileSelect()">点击选择文件</a></p>
-                                    <p class="upload-hint">支持的格式：CSV 文件，最大 5MB</p>
+                        <!-- 导入方式选择 -->
+                        <div>
+                            <label>导入方式:</label>
+                            <div class="import-method-selector">
+                                <div class="method-option">
+                                    <input type="radio" id="csvImportMethod" name="importMethod" value="csv" checked onchange="switchImportMethod('csv')">
+                                    <label for="csvImportMethod">CSV 文件导入</label>
                                 </div>
-                                <input type="file" id="csvFileInput" accept=".csv" style="display: none;" onchange="handleFileSelect(event)">
+                                <div class="method-option">
+                                    <input type="radio" id="jsonImportMethod" name="importMethod" value="json" onchange="switchImportMethod('json')">
+                                    <label for="jsonImportMethod">JSON 文本导入</label>
+                                </div>
                             </div>
                         </div>
 
-                        <!-- 模板下载 -->
-                        <div class="form-group">
-                            <label>CSV 模板:</label>
-                            <div class="template-download">
-                                <button type="button" class="btn btn-sm btn-info" onclick="downloadCSVTemplate()">
-                                    <span class="btn-icon bi bi-download"></span>
-                                    <span>下载 CSV 模板</span>
-                                </button>
-                                <span class="template-hint">下载标准格式模板，包含示例数据</span>
+                        <!-- CSV 导入区域 -->
+                        <div id="csvImportSection" class="import-section">
+                            <!-- 文件上传区域 -->
+                            <div class="form-group">
+                                <label>CSV 文件上传:</label>
+                                <div class="file-upload-area" id="fileUploadArea">
+                                    <div class="upload-placeholder">
+                                        <i class="bi bi-cloud-upload" style="font-size: 48px; color: #007bff;"></i>
+                                        <p>拖拽 CSV 文件到此处，或 <a href="#" onclick="triggerFileSelect()">点击选择文件</a></p>
+                                        <p class="upload-hint">支持的格式：CSV 文件，最大 5MB</p>
+                                    </div>
+                                    <input type="file" id="csvFileInput" accept=".csv" style="display: none;" onchange="handleFileSelect(event)">
+                                </div>
+                            </div>
+
+                            <!-- 模板下载 -->
+                            <div class="form-group">
+                                <label>CSV 模板:</label>
+                                <div class="template-download">
+                                    <button type="button" class="btn btn-sm btn-info" onclick="downloadCSVTemplate()">
+                                        <span class="btn-icon bi bi-download"></span>
+                                        <span>下载 CSV 模板</span>
+                                    </button>
+                                    <span class="template-hint">下载标准格式模板，包含示例数据</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- JSON 导入区域 -->
+                        <div id="jsonImportSection" class="import-section" style="display: none;">
+                            <div class="form-group">
+                                <label for="jsonTextArea">JSON 数据:</label>
+                                <textarea id="jsonTextArea" rows="12" oninput="checkJSONInput()" placeholder='请粘贴包含Token数据的JSON内容。支持多种格式，例如：
+
+{
+  "tenant_url": "https://d4.api.augmentcode.com/",
+  "access_token": "your_access_token_here",
+  "portal_url": "https://portal.withorb.com/view?token=xxx",
+  "email_note": "user@example.com"
+},
+{
+  "tenant_url": "https://d16.api.augmentcode.com/",
+  "access_token": "another_access_token_here",
+  "portal_url": "https://portal.withorb.com/view?token=yyy",
+  "email_note": "another@example.com"
+}
+
+只需要包含 tenant_url 和 access_token 字段即可，其他字段可选。'></textarea>
+                                <small class="form-help">
+                                    只需包含 tenant_url 和 access_token 字段，其他字段（portal_url、email_note等）可选。支持多种JSON格式，无需严格的数组包装。
+                                </small>
+                            </div>
+
+                            <!-- JSON 模板下载 -->
+                            <div class="form-group">
+                                <label>JSON 模板:</label>
+                                <div class="template-download">
+                                    <button type="button" class="btn btn-sm btn-info" onclick="downloadJSONTemplate()">
+                                        <span class="btn-icon bi bi-download"></span>
+                                        <span>下载 JSON 模板</span>
+                                    </button>
+                                    <span class="template-hint">下载标准格式JSON模板，包含示例数据</span>
+                                </div>
                             </div>
                         </div>
 
@@ -328,7 +388,12 @@
                     <div class="step-divider"></div>
                     <div class="step" id="step2-indicator">
                         <span class="step-number">2</span>
-                        <span class="step-title">输入授权码</span>
+                        <span class="step-title">输入授权响应</span>
+                    </div>
+                    <div class="step-divider"></div>
+                    <div class="step" id="step3-indicator">
+                        <span class="step-number">3</span>
+                        <span class="step-title">补充信息</span>
                     </div>
                 </div>
 
@@ -385,7 +450,38 @@
                                 <span class="btn-icon bi bi-arrow-left"></span>
                                 <span>上一步</span>
                             </button>
-                            <button type="button" class="btn btn-success" onclick="saveTokenFromAuth()">
+                            <button type="button" class="btn btn-success" onclick="validateAndGoToStep3()" id="validateBtn">
+                                <span class="btn-icon bi bi-arrow-right"></span>
+                                <span>下一步</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 第三步：补充可选信息 -->
+                <div id="getTokenStep3" class="get-token-step">
+                    <div class="step-content">
+                        <h4>第三步：补充可选信息</h4>
+                        <p>您可以为此Token添加一些可选信息，以便更好地管理和识别。</p>
+
+                        <div class="form-group">
+                            <label for="step3PortalUrl">Portal URL（可选）：</label>
+                            <input type="url" id="step3PortalUrl" placeholder="https://example.portal.augmentcode.com/">
+                            <small class="form-help">如果您有特定的Portal URL，可以在此输入</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="step3EmailNote">邮箱备注（可选）：</label>
+                            <input type="text" id="step3EmailNote" placeholder="输入邮箱或其他备注信息">
+                            <small class="form-help">用于标识此Token的用途或所属账户</small>
+                        </div>
+
+                        <div class="step-actions">
+                            <button type="button" class="btn btn-secondary" onclick="goToStep2()">
+                                <span class="btn-icon bi bi-arrow-left"></span>
+                                <span>上一步</span>
+                            </button>
+                            <button type="button" class="btn btn-success" onclick="saveTokenFinal()" id="saveTokenBtn">
                                 <span class="btn-icon bi bi-check-lg"></span>
                                 <span>保存 Token</span>
                             </button>
@@ -438,6 +534,34 @@
         function openAddModal() {
             document.getElementById('addModal').style.display = 'block';
             document.body.style.overflow = 'hidden';
+
+            // 初始化批量导入状态
+            setTimeout(() => {
+                initializeBatchImportState();
+            }, 100);
+        }
+
+        // 初始化批量导入状态
+        function initializeBatchImportState() {
+            const importMethod = document.querySelector('input[name="importMethod"]:checked');
+            const importBtn = document.getElementById('batchImportBtn');
+
+            if (!importBtn) {
+                return;
+            }
+
+            if (importMethod) {
+                if (importMethod.value === 'csv') {
+                    // CSV模式：检查是否有有效数据
+                    importBtn.disabled = validData.length === 0;
+                } else if (importMethod.value === 'json') {
+                    // JSON模式：检查JSON输入
+                    checkJSONInput();
+                }
+            } else {
+                // 默认情况下禁用按钮
+                importBtn.disabled = true;
+            }
         }
 
         function closeAddModal() {
@@ -491,14 +615,18 @@
             // 重置步骤指示器
             document.getElementById('step1-indicator').classList.add('active');
             document.getElementById('step2-indicator').classList.remove('active');
+            document.getElementById('step3-indicator').classList.remove('active');
 
-            // 显示第一步，隐藏第二步
+            // 显示第一步，隐藏其他步骤
             document.getElementById('getTokenStep1').classList.add('active');
             document.getElementById('getTokenStep2').classList.remove('active');
+            document.getElementById('getTokenStep3').classList.remove('active');
 
             // 重置表单
             document.getElementById('authUrl').value = '';
             document.getElementById('authResponse').value = '';
+            document.getElementById('step3PortalUrl').value = '';
+            document.getElementById('step3EmailNote').value = '';
 
             // 重置按钮状态
             document.getElementById('copyUrlBtn').disabled = true;
@@ -510,28 +638,55 @@
             generateBtn.disabled = false;
             generateBtn.innerHTML = '<span class="btn-icon bi bi-download"></span><span>生成授权URL</span>';
 
-            // 清除存储的OAuth状态
+            // 清除存储的OAuth状态和验证数据
             window.currentOAuthState = null;
-        }
-
-        function goToStep2() {
-            // 更新步骤指示器
-            document.getElementById('step1-indicator').classList.remove('active');
-            document.getElementById('step2-indicator').classList.add('active');
-
-            // 切换步骤内容
-            document.getElementById('getTokenStep1').classList.remove('active');
-            document.getElementById('getTokenStep2').classList.add('active');
+            window.validatedTokenData = null;
         }
 
         function goToStep1() {
             // 更新步骤指示器
             document.getElementById('step1-indicator').classList.add('active');
             document.getElementById('step2-indicator').classList.remove('active');
+            document.getElementById('step3-indicator').classList.remove('active');
 
             // 切换步骤内容
             document.getElementById('getTokenStep1').classList.add('active');
             document.getElementById('getTokenStep2').classList.remove('active');
+            document.getElementById('getTokenStep3').classList.remove('active');
+        }
+
+        function goToStep2() {
+            // 更新步骤指示器
+            document.getElementById('step1-indicator').classList.remove('active');
+            document.getElementById('step2-indicator').classList.add('active');
+            document.getElementById('step3-indicator').classList.remove('active');
+
+            // 切换步骤内容
+            document.getElementById('getTokenStep1').classList.remove('active');
+            document.getElementById('getTokenStep2').classList.add('active');
+            document.getElementById('getTokenStep3').classList.remove('active');
+        }
+
+        function goToStep3() {
+            // 更新步骤指示器
+            document.getElementById('step1-indicator').classList.remove('active');
+            document.getElementById('step2-indicator').classList.remove('active');
+            document.getElementById('step3-indicator').classList.add('active');
+
+            // 切换步骤内容
+            document.getElementById('getTokenStep1').classList.remove('active');
+            document.getElementById('getTokenStep2').classList.remove('active');
+            document.getElementById('getTokenStep3').classList.add('active');
+
+            // 如果有验证的token数据，预填充Portal URL和Email
+            if (window.validatedTokenData) {
+                if (window.validatedTokenData.portal_url) {
+                    document.getElementById('step3PortalUrl').value = window.validatedTokenData.portal_url;
+                }
+                if (window.validatedTokenData.email) {
+                    document.getElementById('step3EmailNote').value = window.validatedTokenData.email;
+                }
+            }
         }
 
         function generateAuthUrl() {
@@ -613,7 +768,7 @@
             showNotification('已在新标签页中打开授权页面', 'info');
         }
 
-        function saveTokenFromAuth() {
+        function validateAndGoToStep3() {
             const authResponseText = document.getElementById('authResponse').value.trim();
 
             // 验证输入不为空
@@ -660,10 +815,10 @@
             }
 
             // 显示加载状态
-            const saveBtn = document.querySelector('#getTokenStep2 .btn-success');
-            const originalContent = saveBtn.innerHTML;
-            saveBtn.disabled = true;
-            saveBtn.innerHTML = '<span class="btn-icon bi bi-arrow-clockwise spinning"></span><span>保存中...</span>';
+            const validateBtn = document.getElementById('validateBtn');
+            const originalContent = validateBtn.innerHTML;
+            validateBtn.disabled = true;
+            validateBtn.innerHTML = '<span class="btn-icon bi bi-arrow-clockwise spinning"></span><span>验证中...</span>';
 
             // 准备请求数据
             const requestData = {
@@ -671,8 +826,8 @@
                 oauth_state: window.currentOAuthState
             };
 
-            // 发送token交换请求
-            fetch('/api/auth/exchange-token', {
+            // 发送验证请求
+            fetch('/api/auth/validate-response', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -682,7 +837,64 @@
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    showNotification(data.message || 'Token获取并保存成功', 'success');
+                    // 保存验证后的token数据
+                    window.validatedTokenData = data.data;
+                    showNotification(data.message || '授权响应验证成功', 'success');
+                    // 进入第3步
+                    goToStep3();
+                } else {
+                    showNotification(data.error || '验证授权响应失败', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('验证授权响应错误:', error);
+                showNotification('验证授权响应失败: ' + error.message, 'error');
+            })
+            .finally(() => {
+                // 恢复按钮状态
+                validateBtn.disabled = false;
+                validateBtn.innerHTML = originalContent;
+            });
+        }
+
+        function saveTokenFinal() {
+            // 验证是否有验证后的token数据
+            if (!window.validatedTokenData) {
+                showNotification('缺少验证数据，请重新开始流程', 'error');
+                return;
+            }
+
+            // 获取用户输入的可选信息
+            const portalUrl = document.getElementById('step3PortalUrl').value.trim();
+            const emailNote = document.getElementById('step3EmailNote').value.trim();
+
+            // 显示加载状态
+            const saveBtn = document.getElementById('saveTokenBtn');
+            const originalContent = saveBtn.innerHTML;
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<span class="btn-icon bi bi-arrow-clockwise spinning"></span><span>保存中...</span>';
+
+            // 准备保存请求数据
+            const saveData = {
+                tenant_url: window.validatedTokenData.tenant_url,
+                access_token: window.validatedTokenData.access_token,
+                email: window.validatedTokenData.email,
+                portal_url: portalUrl || window.validatedTokenData.portal_url,
+                email_note: emailNote
+            };
+
+            // 发送保存请求
+            fetch('/api/auth/save-token', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(saveData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification(data.message || 'Token保存成功', 'success');
                     closeGetTokenModal();
                     // 动态刷新Token列表，回到第一页显示新获取的Token
                     setTimeout(() => {
@@ -1026,6 +1238,67 @@
                 });
         }
 
+        // 验证Token状态
+        function validateTokenStatus(tokenId) {
+            // 查找状态标签
+            const statusBadge = document.querySelector(`.status-badge[data-token-id="${tokenId}"] .badge`);
+            if (!statusBadge) {
+                console.error(`找不到Token ${tokenId}的状态标签`);
+                return;
+            }
+
+            // 防止重复点击
+            if (statusBadge.classList.contains('validating')) {
+                return;
+            }
+
+            const originalContent = statusBadge.textContent;
+            const originalClass = statusBadge.className;
+
+            // 显示加载状态
+            statusBadge.classList.add('validating');
+            statusBadge.textContent = '验证中...';
+            statusBadge.style.pointerEvents = 'none'; // 禁用点击
+
+            // 调用验证 API
+            fetch(`/api/tokens/${tokenId}/validate`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // 更新页面上的显示
+                        updateTokenRow(tokenId, data.data);
+
+                        // 显示验证结果
+                        if (data.valid) {
+                            showNotification(data.message || 'Token 状态正常', 'success');
+                        } else {
+                            showNotification(data.message || 'Token 已失效，状态已更新', 'warning');
+                        }
+                    } else {
+                        showNotification('验证失败: ' + data.error, 'error');
+                        // 恢复原始状态
+                        statusBadge.textContent = originalContent;
+                        statusBadge.className = originalClass;
+                    }
+                })
+                .catch(error => {
+                    showNotification('验证失败: ' + error.message, 'error');
+                    // 恢复原始状态
+                    statusBadge.textContent = originalContent;
+                    statusBadge.className = originalClass;
+                })
+                .finally(() => {
+                    // 恢复点击功能
+                    statusBadge.classList.remove('validating');
+                    statusBadge.style.pointerEvents = 'auto';
+                });
+        }
+
         // 批量刷新所有 Token
         function batchRefreshTokens() {
             const batchBtn = document.getElementById('batchRefreshBtn');
@@ -1089,6 +1362,94 @@
                 });
         }
 
+        // 批量验证所有 Token 状态
+        function batchValidateTokens() {
+            const batchBtn = document.getElementById('batchValidateBtn');
+            const originalContent = batchBtn.innerHTML;
+
+            // 获取当前页面显示的所有 Token ID
+            const statusBadges = document.querySelectorAll('.status-badge[data-token-id]');
+            const tokenIds = Array.from(statusBadges).map(badge => badge.getAttribute('data-token-id'));
+
+            if (tokenIds.length === 0) {
+                showNotification('没有 Token 需要验证', 'info');
+                return;
+            }
+
+            // 显示加载状态
+            batchBtn.disabled = true;
+            batchBtn.innerHTML = `<span class="btn-icon bi bi-shield-check spinning"></span><span>验证中... (0/${tokenIds.length})</span>`;
+
+            let completedCount = 0;
+            let validCount = 0;
+            let invalidCount = 0;
+            let errorCount = 0;
+            const results = [];
+
+            // 逐个验证Token
+            const validateNext = (index) => {
+                if (index >= tokenIds.length) {
+                    // 所有验证完成
+                    const message = `批量验证完成：${validCount}个正常，${invalidCount}个失效${errorCount > 0 ? `，${errorCount}个错误` : ''}`;
+                    if (errorCount === 0) {
+                        showNotification(message, 'success');
+                    } else if (validCount > 0 || invalidCount > 0) {
+                        showNotification(message, 'warning');
+                    } else {
+                        showNotification(message, 'error');
+                    }
+
+                    // 恢复按钮状态
+                    batchBtn.disabled = false;
+                    batchBtn.innerHTML = originalContent;
+                    return;
+                }
+
+                const tokenId = tokenIds[index];
+
+                // 更新进度
+                batchBtn.innerHTML = `<span class="btn-icon bi bi-shield-check spinning"></span><span>验证中... (${completedCount}/${tokenIds.length})</span>`;
+
+                // 调用单个Token验证
+                fetch(`/api/tokens/${tokenId}/validate`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    completedCount++;
+                    if (data.success) {
+                        // 更新Token显示
+                        updateTokenRow(tokenId, data.data);
+
+                        if (data.valid) {
+                            validCount++;
+                        } else {
+                            invalidCount++;
+                        }
+                        results.push({ tokenId, status: 'success', valid: data.valid });
+                    } else {
+                        errorCount++;
+                        results.push({ tokenId, status: 'error', error: data.error });
+                    }
+                })
+                .catch(error => {
+                    completedCount++;
+                    errorCount++;
+                    results.push({ tokenId, status: 'error', error: error.message });
+                })
+                .finally(() => {
+                    // 验证下一个Token
+                    setTimeout(() => validateNext(index + 1), 100); // 添加小延迟避免过快请求
+                });
+            };
+
+            // 开始验证
+            validateNext(0);
+        }
+
         // 更新 Token 行显示
         function updateTokenRow(tokenId, tokenData) {
             // 使用刷新按钮来定位表格行，确保选择正确的元素
@@ -1125,6 +1486,45 @@
             if (creditsCell) {
                 const credits = parseCreditsFromPortalInfo(tokenData.portal_info);
                 creditsCell.querySelector('.credits-balance').textContent = credits;
+            }
+
+            // 更新状态
+            const statusCell = cells[4];
+            if (statusCell) {
+                const statusBadge = statusCell.querySelector('.status-badge');
+                if (statusBadge) {
+                    // 更新数据属性
+                    statusBadge.setAttribute('data-ban-status', escapeHtml(tokenData.ban_status || '{}'));
+                    statusBadge.setAttribute('data-portal-info', escapeHtml(tokenData.portal_info || '{}'));
+
+                    // 使用新的状态解析函数
+                    const banStatus = tokenData.ban_status || '{}';
+                    const portalInfo = tokenData.portal_info || '{}';
+                    const isActive = parseTokenStatus(banStatus, portalInfo);
+
+                    // 更新状态标签
+                    const badgeElement = statusBadge.querySelector('.badge');
+                    if (badgeElement) {
+                        badgeElement.className = `badge ${isActive ? 'status-active' : 'status-inactive'} status-clickable`;
+                        badgeElement.textContent = isActive ? '正常' : '失效';
+                        badgeElement.title = '点击验证Token状态';
+                        badgeElement.style.cursor = 'pointer';
+
+                        // 确保点击事件存在（如果不存在则添加）
+                        if (!badgeElement.onclick) {
+                            badgeElement.addEventListener('click', function() {
+                                validateTokenStatus(tokenId);
+                            });
+                        }
+                    }
+
+                    // 更新行样式
+                    if (isActive) {
+                        tokenRow.classList.remove('token-inactive');
+                    } else {
+                        tokenRow.classList.add('token-inactive');
+                    }
+                }
             }
         }
 
@@ -1443,6 +1843,55 @@
             });
         }
 
+        // HTML转义函数
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // 解析Token状态（优先检查ban_status，降级到portal_info.is_active）
+        function parseTokenStatus(banStatus, portalInfo) {
+            let isActive = true; // 默认为激活状态
+
+            // 优先检查 ban_status 字段
+            // 如果ban_status为null、undefined、空字符串、"{}"或"null"，则认为状态正常
+            if (banStatus &&
+                banStatus !== '{}' &&
+                banStatus !== 'null' &&
+                banStatus !== 'undefined' &&
+                banStatus.trim() !== '') {
+
+                // 处理双重引号转义的情况，如 "\"SUSPENDED\"" 或 "\"ACTIVE\""
+                // 直接使用字符串匹配来检查状态值
+                const banStatusStr = banStatus.toString();
+
+                // 检查是否包含 SUSPENDED 或 ACTIVE 状态（都表示Token不可用）
+                if (banStatusStr.includes('SUSPENDED') || banStatusStr.includes('ACTIVE')) {
+                    return false; // SUSPENDED 或 ACTIVE 状态都表示失效
+                }
+
+                // 如果ban_status存在但不包含上述状态值，可能是其他状态
+                // 继续降级到portal_info检查
+            }
+
+            // 降级到 portal_info.is_active 字段
+            if (portalInfo && portalInfo !== '{}') {
+                try {
+                    const info = JSON.parse(portalInfo);
+                    isActive = info.is_active !== false; // 只有明确为false时才是失效
+                } catch (e) {
+                    // JSON解析失败，使用字符串匹配
+                    if (portalInfo.includes('"is_active": false') || portalInfo.includes('"is_active":false')) {
+                        isActive = false;
+                    }
+                }
+            }
+
+            return isActive;
+        }
+
         // 解析并显示Token状态
         function parseAndDisplayTokenStatus() {
             const statusBadges = document.querySelectorAll('.status-badge');
@@ -1450,25 +1899,22 @@
             statusBadges.forEach(badge => {
                 const tokenId = badge.getAttribute('data-token-id');
                 const portalInfo = badge.getAttribute('data-portal-info');
+                const banStatus = badge.getAttribute('data-ban-status');
 
-                let isActive = true; // 默认为激活状态
+                // 使用新的状态解析函数
+                const isActive = parseTokenStatus(banStatus, portalInfo);
 
-                if (portalInfo && portalInfo !== '{}') {
-                    try {
-                        const info = JSON.parse(portalInfo);
-                        isActive = info.is_active !== false; // 只有明确为false时才是失效
-                    } catch (e) {
-                        // JSON解析失败，使用字符串匹配
-                        if (portalInfo.includes('"is_active": false') || portalInfo.includes('"is_active":false')) {
-                            isActive = false;
-                        }
-                    }
-                }
-
-                // 创建状态标签
+                // 创建可点击的状态标签
                 const badgeElement = document.createElement('span');
-                badgeElement.className = `badge ${isActive ? 'status-active' : 'status-inactive'}`;
+                badgeElement.className = `badge ${isActive ? 'status-active' : 'status-inactive'} status-clickable`;
                 badgeElement.textContent = isActive ? '正常' : '失效';
+                badgeElement.title = '点击验证Token状态';
+                badgeElement.style.cursor = 'pointer';
+
+                // 添加点击事件
+                badgeElement.addEventListener('click', function() {
+                    validateTokenStatus(tokenId);
+                });
 
                 // 清空并添加标签
                 badge.innerHTML = '';
@@ -1609,7 +2055,7 @@
                     <div class="credits-balance">${creditsBalance}</div>
                 </td>
                 <td>
-                    <div class="status-badge" data-token-id="${token.id}">
+                    <div class="status-badge" data-token-id="${token.id}" data-ban-status="${escapeHtml(token.ban_status || '{}')}" data-portal-info="${escapeHtml(token.portal_info || '{}')}">
                         <!-- 状态将通过JavaScript动态设置 -->
                     </div>
                 </td>
@@ -1635,26 +2081,22 @@
             setTimeout(() => {
                 const statusBadge = row.querySelector('.status-badge');
                 if (statusBadge) {
-                    // 解析状态信息
-                    let isActive = true;
+                    // 使用新的状态解析函数
+                    const banStatus = token.ban_status || '{}';
                     const portalInfo = token.portal_info || '{}';
+                    const isActive = parseTokenStatus(banStatus, portalInfo);
 
-                    if (portalInfo && portalInfo !== '{}') {
-                        try {
-                            const info = JSON.parse(portalInfo);
-                            isActive = info.is_active !== false;
-                        } catch (e) {
-                            // JSON解析失败，使用字符串匹配
-                            if (portalInfo.includes('"is_active": false') || portalInfo.includes('"is_active":false')) {
-                                isActive = false;
-                            }
-                        }
-                    }
-
-                    // 创建状态标签
+                    // 创建可点击的状态标签
                     const badgeElement = document.createElement('span');
-                    badgeElement.className = `badge ${isActive ? 'status-active' : 'status-inactive'}`;
+                    badgeElement.className = `badge ${isActive ? 'status-active' : 'status-inactive'} status-clickable`;
                     badgeElement.textContent = isActive ? '正常' : '失效';
+                    badgeElement.title = '点击验证Token状态';
+                    badgeElement.style.cursor = 'pointer';
+
+                    // 添加点击事件
+                    badgeElement.addEventListener('click', function() {
+                        validateTokenStatus(token.id);
+                    });
 
                     statusBadge.appendChild(badgeElement);
 
@@ -1810,10 +2252,33 @@
             }
         }
 
+        // 导入方式切换
+        function switchImportMethod(method) {
+            const csvSection = document.getElementById('csvImportSection');
+            const jsonSection = document.getElementById('jsonImportSection');
+            const importBtn = document.getElementById('batchImportBtn');
+
+            if (method === 'csv') {
+                csvSection.style.display = 'block';
+                jsonSection.style.display = 'none';
+                // CSV模式下，根据是否有有效数据来启用按钮
+                importBtn.disabled = validData.length === 0;
+            } else if (method === 'json') {
+                csvSection.style.display = 'none';
+                jsonSection.style.display = 'block';
+                // JSON模式下，检查JSON输入
+                setTimeout(() => {
+                    checkJSONInput();
+                }, 100);
+            }
+        }
+
         // 重置批量导入状态
         function resetBatchImportState() {
             csvData = [];
             validData = [];
+
+            // 重置CSV上传区域
             document.getElementById('fileUploadArea').innerHTML = `
                 <div class="upload-placeholder">
                     <i class="bi bi-cloud-upload" style="font-size: 48px; color: #007bff;"></i>
@@ -1822,8 +2287,167 @@
                 </div>
                 <input type="file" id="csvFileInput" accept=".csv" style="display: none;" onchange="handleFileSelect(event)">
             `;
+
+            // 重置JSON文本框
+            const jsonTextArea = document.getElementById('jsonTextArea');
+            if (jsonTextArea) {
+                jsonTextArea.value = '';
+            }
+
+            // 重置进度和按钮状态
             document.getElementById('importProgressSection').style.display = 'none';
             document.getElementById('batchImportBtn').disabled = true;
+
+            // 不重置导入方式选择，保持用户当前的选择
+            // 但需要根据当前选择的方式来更新按钮状态
+            const currentMethod = document.querySelector('input[name="importMethod"]:checked');
+            if (currentMethod && currentMethod.value === 'json') {
+                // 如果当前是JSON模式，检查JSON输入
+                setTimeout(() => {
+                    checkJSONInput();
+                }, 100);
+            }
+        }
+
+        // 检查JSON输入并启用/禁用导入按钮（简化版本）
+        function checkJSONInput() {
+            const jsonText = document.getElementById('jsonTextArea').value.trim();
+            const importBtn = document.getElementById('batchImportBtn');
+            const importMethod = document.querySelector('input[name="importMethod"]:checked');
+
+            if (!importMethod || !importBtn) {
+                return;
+            }
+
+            if (importMethod.value === 'json') {
+                if (jsonText.length > 0) {
+                    const validItems = parseFlexibleJSON(jsonText);
+                    importBtn.disabled = validItems.length === 0;
+
+                    if (validItems.length > 0) {
+                        clearJSONErrorMessage();
+                    } else {
+                        showJSONErrorMessage(`未找到有效的Token数据。请确保包含 tenant_url 和 access_token 字段`);
+                    }
+                } else {
+                    importBtn.disabled = true;
+                    clearJSONErrorMessage();
+                }
+            }
+        }
+
+        // 灵活解析JSON数据，支持多种格式
+        function parseFlexibleJSON(jsonText) {
+            const validItems = [];
+
+            try {
+                // 预处理：清理文本
+                let cleanedText = jsonText.trim();
+
+                // 移除每行开头的空格（保持JSON结构）
+                cleanedText = cleanedText.split('\n').map(line => line.trim()).join('\n');
+
+                // 移除末尾的逗号（如果有的话）
+                if (cleanedText.endsWith(',')) {
+                    cleanedText = cleanedText.slice(0, -1).trim();
+                }
+
+                // 尝试多种解析策略
+                let parsedData = null;
+
+                // 策略1: 直接解析（可能是标准JSON数组）
+                try {
+                    parsedData = JSON.parse(cleanedText);
+                } catch (e) {
+                    // 策略2: 添加数组包装后解析
+                    try {
+                        parsedData = JSON.parse('[' + cleanedText + ']');
+                    } catch (e2) {
+                        // 策略3: 尝试修复对象间的逗号问题
+                        let fixedText = cleanedText;
+
+                        // 在 }{ 之间添加逗号
+                        fixedText = fixedText.replace(/}\s*{/g, '},{');
+
+                        // 尝试直接解析修复后的文本
+                        try {
+                            parsedData = JSON.parse(fixedText);
+                        } catch (e3) {
+                            // 尝试添加数组包装
+                            try {
+                                parsedData = JSON.parse('[' + fixedText + ']');
+                            } catch (e4) {
+                                return validItems;
+                            }
+                        }
+                    }
+                }
+
+                // 确保数据是数组格式
+                if (!Array.isArray(parsedData)) {
+                    if (typeof parsedData === 'object' && parsedData !== null) {
+                        parsedData = [parsedData];
+                    } else {
+                        return validItems;
+                    }
+                }
+
+                // 提取有效的Token数据
+                parsedData.forEach(item => {
+                    if (item && typeof item === 'object') {
+                        const extractedItem = extractTokenData(item);
+                        if (extractedItem) {
+                            validItems.push(extractedItem);
+                        }
+                    }
+                });
+
+            } catch (error) {
+                // 静默处理解析错误
+            }
+
+            return validItems;
+        }
+
+        // 从对象中提取Token数据（只关注核心字段）
+        function extractTokenData(item) {
+            // 检查必需字段
+            const tenantUrl = item.tenant_url || item.tenantUrl || item.tenant || item.url;
+            const accessToken = item.access_token || item.accessToken || item.token;
+
+            if (!tenantUrl || !accessToken) {
+                return null;
+            }
+
+            // 构建有效的Token对象（只包含需要的字段）
+            return {
+                tenant_url: String(tenantUrl).trim(),
+                access_token: String(accessToken).trim(),
+                portal_url: (item.portal_url || item.portalUrl || item.portal || '').toString().trim(),
+                email_note: (item.email_note || item.emailNote || item.email || item.note || '').toString().trim()
+            };
+        }
+
+        // 显示JSON错误消息
+        function showJSONErrorMessage(message) {
+            let errorDiv = document.getElementById('jsonErrorMessage');
+            if (!errorDiv) {
+                errorDiv = document.createElement('div');
+                errorDiv.id = 'jsonErrorMessage';
+                errorDiv.style.cssText = 'color: #dc3545; font-size: 12px; margin-top: 5px; padding: 5px; background-color: #f8d7da; border: 1px solid #f5c6cb; border-radius: 3px;';
+                const jsonTextArea = document.getElementById('jsonTextArea');
+                jsonTextArea.parentNode.insertBefore(errorDiv, jsonTextArea.nextSibling);
+            }
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        // 清除JSON错误消息
+        function clearJSONErrorMessage() {
+            const errorDiv = document.getElementById('jsonErrorMessage');
+            if (errorDiv) {
+                errorDiv.style.display = 'none';
+            }
         }
 
         // 触发文件选择
@@ -1842,6 +2466,35 @@ https://d16.api.augmentcode.com/,your_access_token_here,https://portal.withorb.c
             const url = URL.createObjectURL(blob);
             link.setAttribute('href', url);
             link.setAttribute('download', 'token_import_template.csv');
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // 下载JSON模板
+        function downloadJSONTemplate() {
+            const jsonContent = [
+                {
+                    "tenant_url": "https://d4.api.augmentcode.com/",
+                    "access_token": "47b88f8389f79640933d71ca326da7ab87369b39c3b951b98779615116f39293",
+                    "portal_url": "https://portal.withorb.com/view?token=IlhpNHVVVXc2MnNvZUxWYXIi.QqnQ4EcivsODwyc8eL4ogK3iHSM",
+                    "email_note": "uviweqp86536@outlook.com"
+                },
+                {
+                    "tenant_url": "https://d16.api.augmentcode.com/",
+                    "access_token": "another_access_token_here_replace_with_real_token",
+                    "portal_url": "https://portal.withorb.com/view?token=another_token_here",
+                    "email_note": "another_email@example.com"
+                }
+            ];
+
+            const jsonString = JSON.stringify(jsonContent, null, 2);
+            const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', 'token_import_template.json');
             link.style.visibility = 'hidden';
             document.body.appendChild(link);
             link.click();
@@ -2057,17 +2710,72 @@ https://d16.api.augmentcode.com/,your_access_token_here,https://portal.withorb.c
 
         // 开始批量导入
         function startBatchImport() {
-            if (validData.length === 0) {
-                showNotification('没有有效的数据可以导入', 'error');
-                return;
+            const importMethod = document.querySelector('input[name="importMethod"]:checked').value;
+
+            if (importMethod === 'csv') {
+                // CSV导入方式
+                if (validData.length === 0) {
+                    showNotification('没有有效的CSV数据可以导入', 'error');
+                    return;
+                }
+
+                // 显示进度条
+                document.getElementById('importProgressSection').style.display = 'block';
+                document.getElementById('batchImportBtn').disabled = true;
+
+                // 批量导入数据
+                importTokensBatch(validData);
+            } else if (importMethod === 'json') {
+                // JSON导入方式
+                const jsonText = document.getElementById('jsonTextArea').value.trim();
+                if (!jsonText) {
+                    showNotification('请输入JSON数据', 'error');
+                    return;
+                }
+
+                // 使用灵活的JSON验证
+                const validJsonData = validateJSONData(jsonText);
+                if (validJsonData.length === 0) {
+                    showNotification('没有有效的JSON数据可以导入。请确保包含 tenant_url 和 access_token 字段', 'error');
+                    return;
+                }
+
+                // 显示进度条
+                document.getElementById('importProgressSection').style.display = 'block';
+                document.getElementById('batchImportBtn').disabled = true;
+
+                // 批量导入数据
+                importTokensBatch(validJsonData);
+            }
+        }
+
+        // 验证JSON数据（简化版本）
+        function validateJSONData(jsonText) {
+            // 使用灵活解析函数
+            const validData = parseFlexibleJSON(jsonText);
+
+            // 进行基本的URL格式验证
+            const finalValidData = validData.filter(item => {
+                // 验证tenant_url格式
+                if (!isValidURL(item.tenant_url)) {
+                    return false;
+                }
+
+                // 验证portal_url格式（如果提供了的话）
+                if (item.portal_url && item.portal_url.trim() !== '' && !isValidURL(item.portal_url)) {
+                    // 不完全跳过，只是清空portal_url
+                    item.portal_url = '';
+                }
+
+                return true;
+            });
+
+            if (finalValidData.length !== validData.length) {
+                const skipped = validData.length - finalValidData.length;
+                showNotification(`已跳过 ${skipped} 条URL格式无效的记录。有效记录: ${finalValidData.length} 条`, 'warning');
             }
 
-            // 显示进度条
-            document.getElementById('importProgressSection').style.display = 'block';
-            document.getElementById('batchImportBtn').disabled = true;
-
-            // 批量导入数据
-            importTokensBatch(validData);
+            return finalValidData;
         }
 
         // 批量导入Token

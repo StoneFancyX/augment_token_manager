@@ -1,12 +1,18 @@
 package handlers
 
 import (
+	"augment_token_manager/internal/models"
 	"augment_token_manager/internal/repository"
 	"augment_token_manager/internal/services"
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -147,6 +153,79 @@ func (h *TokenHandler) RefreshTokenAPI(c *gin.Context) {
 	})
 }
 
+// ValidateTokenStatusAPI 验证Token状态 API
+func (h *TokenHandler) ValidateTokenStatusAPI(c *gin.Context) {
+	id := c.Param("id")
+	if id == "" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Token ID 不能为空",
+		})
+		return
+	}
+
+	// 获取Token信息
+	token, err := h.tokenRepo.GetTokenByID(id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "获取 Token 失败: " + err.Error(),
+		})
+		return
+	}
+
+	// 执行实时状态验证
+	isValid, err := h.validateTokenStatus(token)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "验证 Token 状态失败: " + err.Error(),
+		})
+		return
+	}
+
+	// 根据验证结果更新ban_status
+	if !isValid {
+		// Token失效，设置为ACTIVE状态
+		err = h.updateTokenBanStatus(id, "ACTIVE")
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "更新 Token 状态失败: " + err.Error(),
+			})
+			return
+		}
+	} else {
+		// Token有效，清除ban_status
+		err = h.clearTokenBanStatus(id)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "清除 Token 状态失败: " + err.Error(),
+			})
+			return
+		}
+	}
+
+	// 重新获取更新后的Token信息
+	updatedToken, err := h.tokenRepo.GetTokenByID(id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "获取更新后的 Token 失败: " + err.Error(),
+		})
+		return
+	}
+
+	message := "Token 状态验证完成"
+	if !isValid {
+		message = "Token 已失效，状态已更新"
+	} else {
+		message = "Token 状态正常"
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    updatedToken.ToResponse(),
+		"valid":   isValid,
+		"message": message,
+	})
+}
+
 // BatchRefreshTokensAPI 批量刷新所有 Token 信息 API
 func (h *TokenHandler) BatchRefreshTokensAPI(c *gin.Context) {
 	// 获取所有 Token
@@ -210,6 +289,95 @@ func (h *TokenHandler) BatchRefreshTokensAPI(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, result)
+}
+
+// validateTokenStatus 通过调用外部API验证Token状态
+func (h *TokenHandler) validateTokenStatus(token *models.Token) (bool, error) {
+	// 检查必要字段
+	if !token.TenantURL.Valid || !token.AccessToken.Valid {
+		return false, fmt.Errorf("Token缺少必要的字段")
+	}
+
+	// 构建请求URL，确保没有双斜杠
+	baseURL := strings.TrimSuffix(token.TenantURL.String, "/")
+	url := baseURL + "/chat-stream"
+
+	// 构建请求体
+	requestBody := map[string]interface{}{
+		"chat_history": []map[string]string{
+			{
+				"response_text":   "你好 Cube! 我是 Augment，很高兴为你提供帮助。",
+				"request_message": "你好，我是Cube",
+			},
+		},
+		"message": "我叫什么名字",
+		"mode":    "CHAT",
+	}
+
+	// 序列化请求体
+	jsonData, err := json.Marshal(requestBody)
+	if err != nil {
+		return false, fmt.Errorf("序列化请求体失败: %v", err)
+	}
+
+	// 创建HTTP请求
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(jsonData))
+	if err != nil {
+		return false, fmt.Errorf("创建请求失败: %v", err)
+	}
+
+	// 设置请求头
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token.AccessToken.String)
+
+	// 创建HTTP客户端，设置超时
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+	}
+
+	// 发送请求
+	resp, err := client.Do(req)
+	if err != nil {
+		return false, fmt.Errorf("发送请求失败: %v", err)
+	}
+	defer resp.Body.Close()
+
+	// 根据状态码判断Token是否有效
+	switch resp.StatusCode {
+	case http.StatusOK:
+		return true, nil // Token有效
+	case http.StatusUnauthorized:
+		return false, nil // Token失效
+	default:
+		// 读取响应体用于错误信息
+		body, _ := io.ReadAll(resp.Body)
+		return false, fmt.Errorf("API返回异常状态码: %d, 响应体: %s", resp.StatusCode, string(body))
+	}
+}
+
+// updateTokenBanStatus 更新Token的ban_status字段
+func (h *TokenHandler) updateTokenBanStatus(tokenID, status string) error {
+	// 构建状态值（带引号的JSON字符串格式）
+	banStatus := fmt.Sprintf(`"%s"`, status)
+
+	// 更新数据库
+	err := h.tokenRepo.UpdateTokenBanStatus(tokenID, banStatus)
+	if err != nil {
+		return fmt.Errorf("更新数据库失败: %v", err)
+	}
+
+	return nil
+}
+
+// clearTokenBanStatus 清除Token的ban_status字段
+func (h *TokenHandler) clearTokenBanStatus(tokenID string) error {
+	// 清除ban_status，设置为空字符串
+	err := h.tokenRepo.UpdateTokenBanStatus(tokenID, "")
+	if err != nil {
+		return fmt.Errorf("清除ban_status失败: %v", err)
+	}
+
+	return nil
 }
 
 // CreateTokenAPI 创建新Token API

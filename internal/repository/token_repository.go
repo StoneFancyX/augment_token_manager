@@ -357,3 +357,33 @@ func (r *TokenRepository) UpdateToken(tokenID string, req UpdateTokenRequest) (*
 	// 获取完整的Token信息（包括ban_status和portal_info）
 	return r.GetTokenByID(tokenID)
 }
+
+// UpdateTokenBanStatus 更新Token的ban_status字段
+func (r *TokenRepository) UpdateTokenBanStatus(tokenID, banStatus string) error {
+	var updateQuery string
+	var err error
+
+	if banStatus == "" {
+		// 清除ban_status，设置为null
+		updateQuery = `
+			UPDATE tokens
+			SET ban_status = NULL, updated_at = CURRENT_TIMESTAMP
+			WHERE id = $1
+		`
+		_, err = database.DB.Exec(updateQuery, tokenID)
+	} else {
+		// 设置具体的ban_status值
+		updateQuery = `
+			UPDATE tokens
+			SET ban_status = $1, updated_at = CURRENT_TIMESTAMP
+			WHERE id = $2
+		`
+		_, err = database.DB.Exec(updateQuery, banStatus, tokenID)
+	}
+
+	if err != nil {
+		return fmt.Errorf("更新 Token ban_status 失败: %v", err)
+	}
+
+	return nil
+}

@@ -88,6 +88,7 @@ func main() {
 		protected.PUT("/api/tokens/:id", tokenHandler.UpdateTokenAPI)
 		protected.DELETE("/api/tokens/:id", tokenHandler.DeleteTokenAPI)
 		protected.POST("/api/tokens/:id/refresh", tokenHandler.RefreshTokenAPI)
+		protected.POST("/api/tokens/:id/validate", tokenHandler.ValidateTokenStatusAPI)
 		protected.POST("/api/tokens/batch-refresh", tokenHandler.BatchRefreshTokensAPI)
 
 		// OAuth相关API

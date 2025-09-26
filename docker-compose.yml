@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  # MySQL数据库 - 已移除，使用宿主机MySQL
+
+  # Python后端
+  backend:
+    build:
+      context: ./backend
+      dockerfile: ../docker/backend.Dockerfile
+    container_name: augment_backend
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=mysql+pymysql://root:123456@localhost:3306/augment_tokens
+      - SECRET_KEY=your-super-secret-key-change-in-production
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+      - HOST=0.0.0.0
+      - PORT=8000
+      - DEBUG=false
+    ports:
+      - "8000:8000"
+    # depends_on移除，不再依赖容器内MySQL
+    network_mode: "host"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Vue前端
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../docker/frontend.Dockerfile
+    container_name: augment_frontend
+    restart: unless-stopped
+    environment:
+      - VITE_API_BASE_URL=http://localhost:8000
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    network_mode: "host"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+# 使用相对路径数据卷
+
+networks:
+  augment_network:
+    driver: bridge

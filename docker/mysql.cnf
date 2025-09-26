@@ -1,0 +1,52 @@
+[mysqld]
+# 基本配置
+user = mysql
+port = 3306
+bind-address = 0.0.0.0
+
+# 数据目录
+datadir = /var/lib/mysql
+socket = /var/run/mysqld/mysqld.sock
+pid-file = /var/run/mysqld/mysqld.pid
+
+# 字符集配置
+character-set-server = utf8mb4
+collation-server = utf8mb4_unicode_ci
+init-connect = 'SET NAMES utf8mb4'
+
+# 跳过权限检查和SSL
+skip-grant-tables
+skip-ssl
+skip-networking = false
+
+# 禁用严格模式
+sql_mode = ""
+
+# 日志配置
+log-error = /var/log/mysql/error.log
+slow_query_log = 1
+slow_query_log_file = /var/log/mysql/slow.log
+long_query_time = 2
+
+# InnoDB配置
+innodb_buffer_pool_size = 128M
+innodb_log_file_size = 64M
+innodb_flush_log_at_trx_commit = 1
+innodb_lock_wait_timeout = 50
+
+# 连接配置
+max_connections = 100
+max_connect_errors = 10000
+wait_timeout = 28800
+interactive_timeout = 28800
+
+# 查询缓存
+query_cache_type = 1
+query_cache_size = 32M
+
+[mysql]
+default-character-set = utf8mb4
+
+[client]
+default-character-set = utf8mb4
+socket = /var/run/mysqld/mysqld.sock

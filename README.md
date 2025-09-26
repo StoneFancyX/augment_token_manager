@@ -1,115 +1,187 @@
-# Augment Token Manager
+# Augment Token Manager (Python版本)
 
-一个基于 Go 语言的跨平台 Augment Token 管理系统，提供简洁的 Web 界面来管理您的 Augment Token。
-
-## 功能特性
-
-- ✅ **数据库连接**: 连接 PostgreSQL 数据库并读取现有 Token 数据
-- ✅ **列表式界面**: 高效的表格布局显示 Token 信息
-- ✅ **智能解析**: 自动解析 portal_info JSON 字段，显示过期时间和剩余次数
-- ✅ **模态框操作**: 添加和编辑 Token 的弹窗表单
-- ✅ **通知系统**: 实时操作反馈和状态提示
-- ✅ **复制功能**: 一键复制 Token 到剪贴板
-- 🔄 **Token 管理**: 添加、删除、编辑 Augment Token（部分实现）
-- 🌐 **响应式设计**: 适配桌面和移动设备的界面
-- 🔒 **数据持久化**: 所有数据存储在 PostgreSQL 数据库中
-- 🖥️ **跨平台**: 支持 Windows、Linux 和 macOS
+一个基于 Python + Vue.js 的前后端分离 Augment Token 管理系统，支持 Docker 部署。
 
 ## 技术栈
 
-- **后端**: Go 语言 + Gin Web 框架
-- **前端**: HTML5 + CSS3（纯前端实现）
-- **数据库**: PostgreSQL
-- **数据库驱动**: lib/pq
+### 后端
+- **框架**: FastAPI
+- **数据库**: MySQL
+- **ORM**: SQLAlchemy
+- **认证**: JWT
+- **包管理**: uv
+
+### 前端
+- **框架**: Vue 3
+- **语言**: TypeScript
+- **样式**: TailwindCSS
+- **构建工具**: Vite
+- **包管理**: pnpm
+
+### 部署
+- **容器化**: Docker + Docker Compose
+- **数据库**: MySQL 8.0
+
+## 功能特性
+
+- ✅ **前后端分离**: 独立的API服务和前端应用
+- ✅ **JWT认证**: 安全的用户认证系统
+- ✅ **Token管理**: 完整的CRUD操作
+- ✅ **状态验证**: 自动验证Token有效性
+- ✅ **批量操作**: 支持批量导入和删除
+- ✅ **响应式设计**: 适配各种设备
+- ✅ **Docker部署**: 一键部署到任何环境
 
 
-## 数据库配置
+## 项目结构
 
-系统连接到以下 PostgreSQL 数据库：
+```
+.
+├── backend/          # Python后端
+│   ├── app/         # 应用代码
+│   ├── requirements.txt
+│   └── Dockerfile
+├── frontend/        # Vue前端
+│   ├── src/        # 源代码
+│   ├── package.json
+│   └── Dockerfile
+├── docker/         # Docker配置
+├── scripts/        # 部署脚本
+└── docker-compose.yml
+```
 
-- **数据库名称**: postgres
-- **用户名**: postgres
-- **密码**: postgres
-- **IP 地址**: localhost
-- **端口**: 5432
+## 快速开始
 
-## 安装和运行
+### 自动化安装 (推荐)
 
-### 前置要求
-
-- Go 1.21 或更高版本
-- PostgreSQL 数据库（已配置并运行）
-
-### 安装步骤
-
-1. 克隆项目到本地：
 ```bash
+# 克隆项目
 git clone <repository-url>
 cd augment_token_manager
+
+# 运行安装脚本
+chmod +x scripts/setup.sh
+./scripts/setup.sh
+
+# 启动开发环境
+chmod +x scripts/deploy.sh
+./scripts/deploy.sh dev
 ```
 
-2. 下载依赖：
+### 使用 Docker Compose
+
 ```bash
-go mod tidy
+# 开发环境
+./scripts/deploy.sh dev
+
+# 生产环境
+./scripts/deploy.sh prod
+
+# 停止服务
+./scripts/deploy.sh stop
+
+# 查看日志
+./scripts/deploy.sh logs
+
+# 清理
+./scripts/deploy.sh cleanup
 ```
 
-3. 运行应用程序：
+### 本地开发
+
+#### 前置要求
+
+- Python 3.13+
+- Node.js 18+
+- uv (Python包管理器)
+- pnpm (Node.js包管理器)
+- Docker & Docker Compose
+
+#### 后端开发
+
 ```bash
-go run cmd/main.go
+cd backend
+
+# 参考 uv-setup.md 安装依赖
+# 启动开发服务器
+uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-4. 打开浏览器访问：
+#### 前端开发
+
+```bash
+cd frontend
+
+# 参考 pnpm-setup.md 安装依赖
+# 启动开发服务器
+pnpm dev
 ```
-http://localhost:8080
+
+## 环境变量
+
+### 后端环境变量
+
+```bash
+# 数据库配置
+DATABASE_URL=mysql+aiomysql://user:password@localhost:3306/augment_tokens
+
+# JWT配置
+SECRET_KEY=your-secret-key
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+
+# 服务器配置
+HOST=0.0.0.0
+PORT=8000
+DEBUG=false
 ```
+
+### 前端环境变量
+
+```bash
+# API地址
+VITE_API_BASE_URL=http://localhost:8000
+```
+
+## API文档
+
+启动后端服务后，访问以下地址查看API文档：
+
+- Swagger UI: http://localhost:8000/docs
+- ReDoc: http://localhost:8000/redoc
 
 ## 数据库表结构
 
-系统会自动创建以下数据表：
-
 ### tokens 表
-```sql
-CREATE TABLE tokens (
-    id SERIAL PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    token_value TEXT NOT NULL,
-    description TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
 
-## API 端点
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | VARCHAR(36) | 主键，UUID |
+| tenant_url | TEXT | 租户URL |
+| access_token | TEXT | 访问令牌 |
+| portal_url | TEXT | 门户URL |
+| email_note | TEXT | 邮箱备注 |
+| ban_status | VARCHAR(50) | 封禁状态 |
+| portal_info | JSON | 门户信息 |
+| created_at | TIMESTAMP | 创建时间 |
+| updated_at | TIMESTAMP | 更新时间 |
 
-- `GET /` - 主页面，显示 Token 列表（列表式布局）
-- `GET /api/tokens` - 获取所有 Token 的 JSON 数据
-- `GET /api/tokens/:id` - 获取单个 Token 的详细信息
-- `GET /health` - 健康检查端点
+## 开发指南
 
-## 开发状态
+### 后端开发
 
-### ✅ 已完成
-- [x] 项目结构搭建
-- [x] 数据库连接和表初始化
-- [x] Token 数据模型定义
-- [x] 数据访问层实现
-- [x] 列表式 Web 界面
-- [x] Token 列表显示功能
-- [x] 模态框添加/编辑表单
-- [x] 通知系统
-- [x] 复制 Token 功能
-- [x] 响应式设计
-- [x] portal_info JSON 解析（过期时间、剩余次数）
-- [x] 单个 Token 详情 API
-- [x] 添加新 Token 后端功能
-- [x] 删除 Token 后端功能
-- [x] 编辑 Token 后端功能
-- [x] 一键使用 Token 功能
-- [x] 批量导入功能
+1. 使用 FastAPI 框架
+2. 遵循 RESTful API 设计原则
+3. 使用 SQLAlchemy 进行数据库操作
+4. 使用 Pydantic 进行数据验证
+5. 使用 JWT 进行身份认证
 
-### 🔄 待实现
-- [ ] 搜索和过滤功能
-- [ ] 批量操作功能
+### 前端开发
+
+1. 使用 Vue 3 Composition API
+2. 使用 TypeScript 进行类型检查
+3. 使用 TailwindCSS 进行样式设计
+4. 使用 Pinia 进行状态管理
+5. 使用 Vue Router 进行路由管理
 
 ## 版权信息
 
